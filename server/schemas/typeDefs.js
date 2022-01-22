@@ -1,48 +1,40 @@
-const { AuthenticationError } = require('apollo-server-express');
-const { User } = require('../models');
+const { gql } = require('apollo-server-express');
 
-const { signToken } = require('../utils/auth');
+const typeDefs = gql`
+	type Book {
+		bookId: String!
+		title: String!
+		authors: [String!]
+		description: String!
+		image: String!
+	}
+	type User {
+		_id: ID!
+		username: String!
+		email: String!
+		password: String!
+		savedBooks: [Book]
+	}
+	type Auth {
+		token: ID!
+		user: User
+	}
+	type Query {
+		me(_id: ID!): User
+	}
+	input BookInput {
+		bookId: String!
+		title: String!
+		authors: [String!]
+		description: String!
+		image: String!
+	}
+	type Mutation {
+		createUser(username: String!, email: String!, password: String!): Auth
+		login(email: String!, password: String!): Auth
+		saveBook(_id: ID!, book: BookInput!): User
+		deleteBook(_id: ID!, bookId: String!): User
+	}
+`;
 
-const resolvers = {
-	Query: {
-		me: async (parent, { _id }) => {
-			return await User.findById(_id);
-		},
-	},
-	Mutation: {
-		createUser: async (parent, args) => {
-			const user = await User.create(args);
-			const token = signToken(user);
-			return { token, user };
-		},
-		login: async (parent, { email, password }) => {
-			const user = await User.findOne({ email });
-
-			if (!user) {
-				throw new AuthenticationError('No Profile with that email');
-			}
-
-			const correctPw = await user.isCorrectPassword(password);
-
-			if (!correctPw) {
-				throw new AuthenticationError('Incorrect password!');
-			}
-			const token = signToken(user);
-			return { token, user };
-		},
-		saveBook: async (parent, { _id, book }) => {
-			const updatedUser = await User.findByIdAndUpdate(_id, {
-				$push: { savedBooks: book },
-			});
-			return updatedUser;
-		},
-		deleteBook: async (parent, { _id, bookId }) => {
-			const updatedUser = await User.findByIdAndUpdate(_id, {
-				$pull: { savedBooks: { bookId } },
-			});
-			return updatedUser;
-		},
-	},
-};
-
-module.exports = resolvers;
+module.exports = typeDefs;
